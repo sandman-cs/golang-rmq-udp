@@ -43,11 +43,10 @@ type sourceDest struct {
 }
 
 var (
-	conn             *amqp.Connection
+	conn             [255]*amqp.Connection
 	rabbitCloseError []chan *amqp.Error
 	conf             configuration
-	//messages         = make(chan string, 128)
-	messages []chan string
+	messages         []chan string
 	// Create a new instance of the logger. You can have any number of instances.
 )
 
@@ -69,22 +68,21 @@ func init() {
 	CheckError(err)
 
 	if len(conf.Channels) > 0 {
-
 		//Keep this part, spawn all the cool new stuff...............................
 		for index, element := range conf.Channels {
 			// Create Channel and launch publish threads.......
 			log.Println("Creating Channel #", index)
 			messages = append(messages, make(chan string, conf.ChannelSize))
-
 			//Spawn Sending threads for each configuration entry
 			for i := 0; i < conf.ChannelCount; i++ {
-				go func() {
+				go func(element sourceDest, index int) {
 					for {
 						sendUDPMessage(element.DstSrv, element.DstPort, messages[index])
 						time.Sleep(100 * time.Millisecond)
 					}
-				}()
+				}(element, index)
 			}
+			rmqRecThread(element.BrokerUser, element.BrokerPwd, element.Broker, element.BrokerVhost, element.BrokerQueue, index)
 		}
 
 	} else {
@@ -155,7 +153,7 @@ func sendUDPMessage(dest string, port string, input chan string) {
 	}
 }
 
-func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerVhost string, index int) {
+func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerVhost string, brokerQueue string, index int) {
 
 	amqpURI := "amqp://" + brokerUser + ":" + brokerPwd + "@" + brokerURL + brokerVhost
 
@@ -170,7 +168,7 @@ func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerV
 
 	rabbitCloseError[index] <- amqp.ErrClosed
 
-	for conn == nil {
+	for conn[index] == nil {
 		fmt.Println("Waiting to RabbitMQ Connection on index", index, "...")
 		time.Sleep(5 * time.Second)
 	}
@@ -180,9 +178,12 @@ func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerV
 		go func() {
 			threadID := tID // Passing back to variable name so it's static for loop below.
 			for {
-				OpenChannel(conn, threadID)
+				OpenChannel(conn[index], brokerQueue, threadID)
 				log.Println("rabbit-listen closed with connection loss.")
 			}
 		}()
 	}
+	forever := make(chan bool)
+	<-forever
+	_ = conn[index].Close()
 }

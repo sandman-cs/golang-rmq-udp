@@ -1,14 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"os"
 )
 
 func main() {
 
 	forever := make(chan bool)
+	fmt.Println("Running....")
 	<-forever
-	_ = conn.Close()
 	os.Exit(0)
 }
 

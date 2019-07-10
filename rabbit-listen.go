@@ -9,7 +9,7 @@ import (
 )
 
 //OpenChannel Opens communication Channel to Queue
-func OpenChannel(conn *amqp.Connection, chanNumber int) {
+func OpenChannel(conn *amqp.Connection, sQueue string, chanNumber int) {
 
 	//Open channel to broker
 	ch, err := conn.Channel()
@@ -19,13 +19,13 @@ func OpenChannel(conn *amqp.Connection, chanNumber int) {
 
 	//Consume messages off the queue
 	msgs, err := ch.Consume(
-		conf.BrokerQueue, // queue
-		conf.ServerName,  // consumer
-		false,            // auto-ack
-		false,            // exclusive
-		false,            // no-local
-		false,            // no-wait
-		nil,              // args
+		sQueue,          // queue
+		conf.ServerName, // consumer
+		false,           // auto-ack
+		false,           // exclusive
+		false,           // no-local
+		false,           // no-wait
+		nil,             // args
 	)
 	if err != nil {
 		log.Println("Failed to register a consumer:", err)
@@ -80,9 +80,9 @@ func rabbitConnector(uri string, index int) {
 		rabbitErr = <-rabbitCloseError[index]
 		if rabbitErr != nil {
 			core.SendMessage("Connecting to RabbitMQ")
-			conn = connectToRabbitMQ(uri)
+			conn[index] = connectToRabbitMQ(uri)
 			rabbitCloseError[index] = make(chan *amqp.Error)
-			conn.NotifyClose(rabbitCloseError[index])
+			conn[index].NotifyClose(rabbitCloseError[index])
 		}
 	}
 }
