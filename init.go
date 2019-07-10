@@ -60,6 +60,7 @@ func init() {
 	conf.DstSrv = "172.24.38.181"
 	conf.DstPort = "514"
 	conf.ChannelCount = 1
+
 	conf.ChannelSize = 128
 
 	//Load Configuration Data
@@ -70,6 +71,16 @@ func init() {
 	if len(conf.Channels) > 0 {
 		//Keep this part, spawn all the cool new stuff...............................
 		for index, element := range conf.Channels {
+			//Load Defaults if needed
+			if element.ChannelCount == 0 {
+				element.ChannelCount = conf.ChannelCount
+			}
+			if len(element.DstPort) == 0 {
+				element.DstPort = conf.DstPort
+			}
+			if len(element.DstSrv) == 0 {
+				element.DstSrv = conf.DstSrv
+			}
 			// Create Channel and launch publish threads.......
 			log.Println("Creating Channel #", index)
 			messages = append(messages, make(chan string, conf.ChannelSize))
@@ -82,7 +93,7 @@ func init() {
 					}
 				}(element, index)
 			}
-			rmqRecThread(element.BrokerUser, element.BrokerPwd, element.Broker, element.BrokerVhost, element.BrokerQueue, index)
+			go rmqRecThread(element.BrokerUser, element.BrokerPwd, element.Broker, element.BrokerVhost, element.BrokerQueue, index)
 		}
 
 	} else {

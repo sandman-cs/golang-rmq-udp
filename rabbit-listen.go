@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/sandman-cs/core"
 	"github.com/streadway/amqp"
 )
 
@@ -13,7 +12,7 @@ func OpenChannel(conn *amqp.Connection, sQueue string, chanNumber int) {
 
 	//Open channel to broker
 	ch, err := conn.Channel()
-	core.FailOnError(err, "Failed to open a channel")
+	FailOnError(err, "Failed to open a channel")
 	ch.Qos(10, 0, true)
 	defer ch.Close()
 
@@ -40,13 +39,13 @@ func OpenChannel(conn *amqp.Connection, sQueue string, chanNumber int) {
 
 			err = processPayload(d.Body)
 			if err != nil {
-				core.SyslogCheckError(err)
+				SyslogCheckError(err)
 				d.Ack(true)
 			} else {
 				d.Ack(false)
 			}
 		}
-		core.SyslogSendJSON("Error, Lost AMQP Connection.")
+		SyslogSendJSON("Error, Lost AMQP Connection.")
 		forever <- false
 	}()
 
@@ -64,8 +63,8 @@ func connectToRabbitMQ(uri string) *amqp.Connection {
 			return conn
 		}
 
-		core.CheckError(err)
-		core.SendMessage("Trying to reconnect to RabbitMQ")
+		CheckError(err)
+		SendMessage("Trying to reconnect to RabbitMQ")
 		time.Sleep(500 * time.Millisecond)
 	}
 }
@@ -79,7 +78,7 @@ func rabbitConnector(uri string, index int) {
 	for {
 		rabbitErr = <-rabbitCloseError[index]
 		if rabbitErr != nil {
-			core.SendMessage("Connecting to RabbitMQ")
+			SendMessage("Connecting to RabbitMQ")
 			conn[index] = connectToRabbitMQ(uri)
 			rabbitCloseError[index] = make(chan *amqp.Error)
 			conn[index].NotifyClose(rabbitCloseError[index])
