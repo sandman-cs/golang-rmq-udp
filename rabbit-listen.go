@@ -1,10 +1,10 @@
 package main
 
 import (
+	"log"
 	"time"
 
 	"github.com/sandman-cs/core"
-	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -28,10 +28,10 @@ func OpenChannel(conn *amqp.Connection, chanNumber int) {
 		nil,              // args
 	)
 	if err != nil {
-		log.Error("Failed to register a consumer:", err)
+		log.Println("Failed to register a consumer:", err)
 		return
 	}
-	log.Info("Rabbit-listener instance started.")
+	log.Println("Rabbit-listener instance started.")
 
 	forever := make(chan bool)
 
