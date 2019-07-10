@@ -73,16 +73,16 @@ func connectToRabbitMQ(uri string) *amqp.Connection {
 // re-establish the connection to RabbitMQ in case
 // the connection has died
 //
-func rabbitConnector(uri string) {
+func rabbitConnector(uri string, index int) {
 	var rabbitErr *amqp.Error
 
 	for {
-		rabbitErr = <-rabbitCloseError
+		rabbitErr = <-rabbitCloseError[index]
 		if rabbitErr != nil {
 			core.SendMessage("Connecting to RabbitMQ")
 			conn = connectToRabbitMQ(uri)
-			rabbitCloseError = make(chan *amqp.Error)
-			conn.NotifyClose(rabbitCloseError)
+			rabbitCloseError[index] = make(chan *amqp.Error)
+			conn.NotifyClose(rabbitCloseError[index])
 		}
 	}
 }

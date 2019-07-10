@@ -26,6 +26,7 @@ type configuration struct {
 	BrokerVhost  string
 	LocalEcho    bool
 	ChannelCount int
+	ChannelSize  int
 	DstSrv       string
 	DstPort      string
 }
@@ -43,10 +44,10 @@ type sourceDest struct {
 
 var (
 	conn             *amqp.Connection
-	rabbitCloseError chan *amqp.Error
+	rabbitCloseError []chan *amqp.Error
 	conf             configuration
-	messages         = make(chan string, 128)
-	messageArr       []chan string
+	//messages         = make(chan string, 128)
+	messages []chan string
 	// Create a new instance of the logger. You can have any number of instances.
 )
 
@@ -60,6 +61,7 @@ func init() {
 	conf.DstSrv = "172.24.38.181"
 	conf.DstPort = "514"
 	conf.ChannelCount = 1
+	conf.ChannelSize = 128
 
 	//Load Configuration Data
 	dat, _ := ioutil.ReadFile("conf.json")
@@ -67,19 +69,32 @@ func init() {
 	CheckError(err)
 
 	if len(conf.Channels) > 0 {
-		fmt.Println("Launching with new configuration")
-		for i := 0; i < len(conf.Channels); i++ {
-			messageArr[i] = make(chan string, 128)
 
+		//Keep this part, spawn all the cool new stuff...............................
+		for index, element := range conf.Channels {
+			// Create Channel and launch publish threads.......
+			log.Println("Creating Channel #", index)
+			messages = append(messages, make(chan string, conf.ChannelSize))
+
+			//Spawn Sending threads for each configuration entry
+			for i := 0; i < conf.ChannelCount; i++ {
+				go func() {
+					for {
+						sendUDPMessage(element.DstSrv, element.DstPort, messages[index])
+						time.Sleep(100 * time.Millisecond)
+					}
+				}()
+			}
 		}
-		os.Exit(0)
+
 	} else {
 
 		//Legacy Launch
+		messages = append(messages, make(chan string, conf.ChannelSize))
 		for i := 0; i < conf.ChannelCount; i++ {
 			go func() {
 				for {
-					sendUDPMessage(conf.DstSrv, conf.DstPort, messages)
+					sendUDPMessage(conf.DstSrv, conf.DstPort, messages[0])
 					time.Sleep(100 * time.Millisecond)
 				}
 			}()
@@ -98,7 +113,7 @@ func sendTCPMessage() {
 	}
 
 	for {
-		msg := <-messages
+		msg := <-messages[0]
 		//fmt.Println(msg)
 		conn, err := p.Get()
 		if err != nil {
@@ -137,5 +152,37 @@ func sendUDPMessage(dest string, port string, input chan string) {
 			}
 			time.Sleep(time.Millisecond * 5)
 		}
+	}
+}
+
+func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerVhost string, index int) {
+
+	amqpURI := "amqp://" + brokerUser + ":" + brokerPwd + "@" + brokerURL + brokerVhost
+
+	// create the rabbitmq error channel
+	rabbitCloseError = append(rabbitCloseError, make(chan *amqp.Error))
+
+	// run the callback in a separate thread
+	go rabbitConnector(amqpURI, index)
+
+	// establish the rabbitmq connection by sending
+	// an error and thus calling the error callback
+
+	rabbitCloseError[index] <- amqp.ErrClosed
+
+	for conn == nil {
+		fmt.Println("Waiting to RabbitMQ Connection on index", index, "...")
+		time.Sleep(5 * time.Second)
+	}
+
+	for i := 0; i <= conf.ChannelCount-1; i++ {
+		tID := i // Passing I into a new variable for clean input to inline go func()
+		go func() {
+			threadID := tID // Passing back to variable name so it's static for loop below.
+			for {
+				OpenChannel(conn, threadID)
+				log.Println("rabbit-listen closed with connection loss.")
+			}
+		}()
 	}
 }
