@@ -93,7 +93,6 @@ func init() {
 			for i := 0; i < element.SocketCount; i++ {
 				go func(element sourceDest, index int) {
 					for {
-						fmt.Println("Dest Port:", element.DstPort)
 						sendUDPMessage(element.DstSrv, element.DstPort, messages[index])
 						time.Sleep(100 * time.Millisecond)
 					}
@@ -168,7 +167,7 @@ func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerV
 		go func() {
 			threadID := tID // Passing back to variable name so it's static for loop below.
 			for {
-				OpenChannel(conn[index], brokerQueue, threadID)
+				OpenChannel(conn[index], brokerQueue, threadID, index)
 				log.Println("rabbit-listen closed with connection loss.")
 			}
 		}()

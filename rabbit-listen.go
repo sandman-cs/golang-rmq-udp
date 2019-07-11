@@ -8,7 +8,7 @@ import (
 )
 
 //OpenChannel Opens communication Channel to Queue
-func OpenChannel(conn *amqp.Connection, sQueue string, chanNumber int) {
+func OpenChannel(conn *amqp.Connection, sQueue string, chanNumber int, index int) {
 
 	//Open channel to broker
 	ch, err := conn.Channel()
@@ -37,7 +37,7 @@ func OpenChannel(conn *amqp.Connection, sQueue string, chanNumber int) {
 	go func() {
 		for d := range msgs {
 
-			err = processPayload(d.Body)
+			err = processPayload(d.Body, index)
 			if err != nil {
 				SyslogCheckError(err)
 				d.Ack(true)

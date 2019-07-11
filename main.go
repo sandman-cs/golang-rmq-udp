@@ -13,7 +13,7 @@ func main() {
 	os.Exit(0)
 }
 
-func processPayload(payload []byte) error {
-	messages[0] <- string(payload[:])
+func processPayload(payload []byte, index int) error {
+	messages[index] <- string(payload[:])
 	return nil
 }
