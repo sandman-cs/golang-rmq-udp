@@ -44,9 +44,9 @@ type sourceDest struct {
 
 var (
 	conn             [255]*amqp.Connection
-	rabbitCloseError []chan *amqp.Error
+	rabbitCloseError [255]chan *amqp.Error
 	conf             configuration
-	messages         []chan string
+	messages         [255]chan string
 	// Create a new instance of the logger. You can have any number of instances.
 )
 
@@ -83,7 +83,7 @@ func init() {
 			}
 			// Create Channel and launch publish threads.......
 			log.Println("Creating Channel #", index)
-			messages = append(messages, make(chan string, conf.ChannelSize))
+			messages[index] = make(chan string, conf.ChannelSize)
 			//Spawn Sending threads for each configuration entry
 			for i := 0; i < conf.ChannelCount; i++ {
 				go func(element sourceDest, index int) {
@@ -99,7 +99,7 @@ func init() {
 	} else {
 
 		//Legacy Launch
-		messages = append(messages, make(chan string, conf.ChannelSize))
+		messages[0] = make(chan string, conf.ChannelSize)
 		for i := 0; i < conf.ChannelCount; i++ {
 			go func() {
 				for {
@@ -169,7 +169,7 @@ func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerV
 	amqpURI := "amqp://" + brokerUser + ":" + brokerPwd + "@" + brokerURL + brokerVhost
 
 	// create the rabbitmq error channel
-	rabbitCloseError = append(rabbitCloseError, make(chan *amqp.Error))
+	rabbitCloseError[index] = make(chan *amqp.Error)
 
 	// run the callback in a separate thread
 	go rabbitConnector(amqpURI, index)
