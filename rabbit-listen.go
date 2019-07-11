@@ -30,7 +30,7 @@ func OpenChannel(conn *amqp.Connection, sQueue string, chanNumber int) {
 		log.Println("Failed to register a consumer:", err)
 		return
 	}
-	log.Println("Rabbit-listener instance started.")
+	//log.Println("Rabbit-listener instance started.")
 
 	forever := make(chan bool)
 

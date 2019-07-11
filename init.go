@@ -78,7 +78,7 @@ func init() {
 				element.ChannelCount = conf.ChannelCount
 			}
 			if element.SocketCount == 0 {
-				element.ChannelCount = conf.ChannelCount
+				element.SocketCount = conf.SocketCount
 			}
 			if len(element.DstPort) == 0 {
 				element.DstPort = conf.DstPort
@@ -93,6 +93,7 @@ func init() {
 			for i := 0; i < element.SocketCount; i++ {
 				go func(element sourceDest, index int) {
 					for {
+						fmt.Println("Dest Port:", element.DstPort)
 						sendUDPMessage(element.DstSrv, element.DstPort, messages[index])
 						time.Sleep(100 * time.Millisecond)
 					}
