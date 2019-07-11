@@ -137,6 +137,10 @@ func sendUDPMessage(dest string, port string, input chan string) {
 				log.Println(err)
 				return
 			}
+			if port == "22113" {
+				fmt.Println("Sent message on:", port)
+				fmt.Println(msg)
+			}
 			time.Sleep(time.Millisecond * 5)
 		}
 	}
