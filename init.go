@@ -98,6 +98,7 @@ func init() {
 					}
 				}(element, index)
 			}
+			fmt.Println(element)
 			go rmqRecThread(element.BrokerUser, element.BrokerPwd, element.Broker, element.BrokerVhost, element.BrokerQueue, element.ChannelCount, index)
 		}
 
