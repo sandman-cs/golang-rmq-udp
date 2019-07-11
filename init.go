@@ -9,7 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/fatih/pool"
 	"github.com/streadway/amqp"
 )
 
@@ -26,6 +25,7 @@ type configuration struct {
 	BrokerVhost  string
 	LocalEcho    bool
 	ChannelCount int
+	SocketCount  int
 	ChannelSize  int
 	DstSrv       string
 	DstPort      string
@@ -38,6 +38,7 @@ type sourceDest struct {
 	BrokerQueue  string
 	BrokerVhost  string
 	ChannelCount int
+	SocketCount  int
 	DstSrv       string
 	DstPort      string
 }
@@ -59,7 +60,8 @@ func init() {
 	conf.LocalEcho = true
 	conf.DstSrv = "172.24.38.181"
 	conf.DstPort = "514"
-	conf.ChannelCount = 1
+	conf.ChannelCount = 4
+	conf.SocketCount = 2
 
 	conf.ChannelSize = 128
 
@@ -75,6 +77,9 @@ func init() {
 			if element.ChannelCount == 0 {
 				element.ChannelCount = conf.ChannelCount
 			}
+			if element.SocketCount == 0 {
+				element.ChannelCount = conf.ChannelCount
+			}
 			if len(element.DstPort) == 0 {
 				element.DstPort = conf.DstPort
 			}
@@ -85,7 +90,7 @@ func init() {
 			log.Println("Creating Channel #", index)
 			messages[index] = make(chan string, conf.ChannelSize)
 			//Spawn Sending threads for each configuration entry
-			for i := 0; i < conf.ChannelCount; i++ {
+			for i := 0; i < element.SocketCount; i++ {
 				go func(element sourceDest, index int) {
 					for {
 						sendUDPMessage(element.DstSrv, element.DstPort, messages[index])
@@ -93,7 +98,7 @@ func init() {
 					}
 				}(element, index)
 			}
-			go rmqRecThread(element.BrokerUser, element.BrokerPwd, element.Broker, element.BrokerVhost, element.BrokerQueue, index)
+			go rmqRecThread(element.BrokerUser, element.BrokerPwd, element.Broker, element.BrokerVhost, element.BrokerQueue, element.ChannelCount, index)
 		}
 
 	} else {
@@ -108,34 +113,6 @@ func init() {
 				}
 			}()
 		}
-	}
-}
-
-func sendTCPMessage() {
-
-	// create a factory() to be used with channel based pool
-	factory := func() (net.Conn, error) { return net.Dial("tcp", conf.DstSrv+":"+conf.DstPort) }
-	p, err := pool.NewChannelPool(2, 5, factory)
-	if err != nil {
-		println("Dial failed:", err.Error())
-		os.Exit(1)
-	}
-
-	for {
-		msg := <-messages[0]
-		//fmt.Println(msg)
-		conn, err := p.Get()
-		if err != nil {
-			println("Dial failed:", err.Error())
-			break
-		}
-		_, err = conn.Write([]byte(msg + "\n"))
-		if err != nil {
-			fmt.Println(msg, err)
-		}
-		conn.Close()
-		time.Sleep(5 * time.Millisecond)
-
 	}
 }
 
@@ -164,7 +141,7 @@ func sendUDPMessage(dest string, port string, input chan string) {
 	}
 }
 
-func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerVhost string, brokerQueue string, index int) {
+func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerVhost string, brokerQueue string, channelCount int, index int) {
 
 	amqpURI := "amqp://" + brokerUser + ":" + brokerPwd + "@" + brokerURL + brokerVhost
 
@@ -184,7 +161,7 @@ func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerV
 		time.Sleep(5 * time.Second)
 	}
 
-	for i := 0; i <= conf.ChannelCount-1; i++ {
+	for i := 0; i <= channelCount-1; i++ {
 		tID := i // Passing I into a new variable for clean input to inline go func()
 		go func() {
 			threadID := tID // Passing back to variable name so it's static for loop below.
