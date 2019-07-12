@@ -14,21 +14,22 @@ import (
 
 // Configuration File Opjects
 type configuration struct {
-	Channels     []sourceDest
-	AppName      string
-	AppVer       string
-	ServerName   string
-	Broker       string
-	BrokerUser   string
-	BrokerPwd    string
-	BrokerQueue  string
-	BrokerVhost  string
-	LocalEcho    bool
-	ChannelCount int
-	SocketCount  int
-	ChannelSize  int
-	DstSrv       string
-	DstPort      string
+	Channels        []sourceDest
+	AppName         string
+	AppVer          string
+	ServerName      string
+	Broker          string
+	BrokerUser      string
+	BrokerPwd       string
+	BrokerQueue     string
+	BrokerVhost     string
+	LocalEcho       bool
+	ChannelCount    int
+	SocketCount     int
+	ChannelSize     int
+	DstSrv          string
+	DstPort         string
+	DstPayloadLimit int
 }
 
 type sourceDest struct {
@@ -53,7 +54,7 @@ var (
 
 func init() {
 	conf.AppName = "rabbit-listen-udp"
-	conf.AppVer = "1.0"
+	conf.AppVer = "1.0.3"
 	conf.ServerName, _ = os.Hostname()
 	conf.Broker = "localhost"
 	conf.BrokerVhost = "/"
@@ -62,6 +63,7 @@ func init() {
 	conf.DstPort = "514"
 	conf.ChannelCount = 4
 	conf.SocketCount = 2
+	conf.DstPayloadLimit = 24000
 
 	conf.ChannelSize = 128
 
@@ -89,7 +91,7 @@ func init() {
 			// Create Channel and launch publish threads.......
 			log.Println("Creating Channel #", index)
 			messages[index] = make(chan string, conf.ChannelSize)
-			//Spawn Sending threads for each configuration entry
+			//Spawn Sending threads
 			for i := 0; i < element.SocketCount; i++ {
 				go func(element sourceDest, index int) {
 					for {
@@ -131,7 +133,7 @@ func sendUDPMessage(dest string, port string, input chan string) {
 		defer conn.Close()
 		for {
 			msg := <-input
-			buf := []byte(msg + "\n")
+			buf := []byte(truncateString(msg, conf.DstPayloadLimit) + "\n")
 			_, err := conn.Write(buf)
 			if err != nil {
 				log.Println(err)
@@ -164,14 +166,15 @@ func rmqRecThread(brokerUser string, brokerPwd string, brokerURL string, brokerV
 	}
 
 	for i := 0; i <= channelCount-1; i++ {
-		tID := i // Passing I into a new variable for clean input to inline go func()
-		go func() {
-			threadID := tID // Passing back to variable name so it's static for loop below.
+		//tID := i // Passing I into a new variable for clean input to inline go func()
+		go func(i int) {
+			//threadID := tID // Passing back to variable name so it's static for loop below.
 			for {
-				OpenChannel(conn[index], brokerQueue, threadID, index)
+				//OpenChannel(conn[index], brokerQueue, threadID, index)
+				OpenChannel(conn[index], brokerQueue, i, index)
 				log.Println("rabbit-listen closed with connection loss.")
 			}
-		}()
+		}(i)
 	}
 	forever := make(chan bool)
 	<-forever
