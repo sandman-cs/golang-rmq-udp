@@ -121,6 +121,8 @@ func init() {
 
 func sendUDPMessage(dest string, port string, input chan string) {
 
+	log.Println("Creating Send Channel...")
+
 	serverAddr, err := net.ResolveUDPAddr("udp", dest+":"+port)
 	CheckError(err)
 	localAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:0")
